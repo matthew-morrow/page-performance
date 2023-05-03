@@ -62,6 +62,7 @@ def weighted_avg(values, weights):
 
 
 def main():
+    #ArgParser module for creating command line arguments needed to run script
     parser = argparse.ArgumentParser(
         description="Calculate page performance metrics",
         epilog="Contact HSICC for further help or troubleshooting: hseclkc@gmail.com",
@@ -117,7 +118,7 @@ def main():
         metavar="activeurlfile",
         nargs="?",
         type=str,
-        default="C:/Users/Matthew Morrow/Documents/GitHub/HSICC/bigquery/performance/data/eclkc_urls_200_status_code.csv",
+        default="C:\\Users\\MatthewMorrow\\OneDrive - Hendall Inc\\laptop_transfer_files\\GitHub\\HSICC\\bigquery\\performance\\data\\eclkc_urls_200_status_code.csv",
         help="Override default active URLs file",
     )
     args = parser.parse_args()
@@ -175,6 +176,7 @@ def main():
         current_raw_results, calculated_grouped_by_page_url
     )
 
+    #Write out all of the dataframe results to their respective sheets in an excel file
     with pd.ExcelWriter(args.output_file) as writer:
         print("\nWriting results to file:")
         previous_raw_results.to_excel(
@@ -217,6 +219,13 @@ def main():
         print("Current outlier results written")
 
 
+"""
+Function for calculating the timeframe based on the start date, timeframe window, and source file
+
+@param start_date: string representation of a datetime
+@param window: timeframe lookup (default is two weeks)
+@params source, active_urls: the raw source file and file with all the 200 status codes URLs
+"""
 def calculate_time_frame(start_date, window, source, active_urls):
     end_date = pd.to_datetime(start_date) + pd.DateOffset(days=window)
     time_frame_result = source[
@@ -232,6 +241,12 @@ def calculate_time_frame(start_date, window, source, active_urls):
     return time_frame_result
 
 
+"""
+Helper function for removing non-active URLs from the cleaned dataframe
+
+@param to_clean_dataframe: raw dataframe of a given timeframe
+@param active_urls: the raw source file and file with all the 200 status codes URLs
+"""
 def cleanup_input_raw_results(to_clean_dataframe, active_urls):
     to_clean_dataframe = to_clean_dataframe.rename(
         columns={"page_load_time_ms": "plt_ms", "server_response_time_ms": "srt_ms"}
@@ -253,7 +268,11 @@ def cleanup_input_raw_results(to_clean_dataframe, active_urls):
     ].reset_index()
     return to_clean_dataframe
 
+"""
+Function for grouping values in the dataframe by the URL
 
+@param to_group_dataframe: dataframe that needs grouping by URL
+"""
 def group_by_page_url(to_group_dataframe):
     grouped = (
         to_group_dataframe.sort_values(["page_url_cleaned"], ascending=False)
@@ -269,7 +288,11 @@ def group_by_page_url(to_group_dataframe):
     )
     return grouped
 
+"""
+Function for grouping values in the dataframe by the page path
 
+@param to_group_dataframe: dataframe that needs grouping by page path
+"""
 def group_by_page_path(to_group_dateframe):
     grouped = (
         to_group_dateframe.sort_values(["page_path_one"], ascending=False)
