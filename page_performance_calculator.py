@@ -34,7 +34,7 @@ def per_diff(previous, current):
     percent_difference = 0
 
     try:
-        percent_difference = (current - previous) / previous * 100
+        percent_difference = (current - previous) / previous
         return percent_difference
     except ZeroDivisionError:
         return "N/A"
@@ -322,7 +322,7 @@ def merge_groups_by_page_url(previous_group, current_group):
     )
 
     merged_group["pv_percent_of_total"] = (
-        merged_group["pv_current"] / merged_group["pv_current"].sum() * 100
+        merged_group["pv_current"] / merged_group["pv_current"].sum()
     )
 
     merged_group["pv_percent_change"] = per_diff(
@@ -541,7 +541,7 @@ def create_external_metrics(current_raw, current_group):
 def create_grouped_by_page_path(previous_group, current_group):
     grouped_result = current_group
     grouped_result["pv_percent_of_total"] = (
-        current_group["pv"] / current_group["pv"].sum() * 100
+        current_group["pv"] / current_group["pv"].sum()
     )
     grouped_result["pv_percent_change"] = per_diff(
         previous_group["pv"],
