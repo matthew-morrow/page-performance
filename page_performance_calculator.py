@@ -10,6 +10,9 @@ import datetime
 import pandas as pd
 import sys
 import argparse
+from decouple import config
+from boxsdk import OAuth2, Client
+
 
 previous_raw_results = pd.DataFrame()
 current_raw_results = pd.DataFrame()
@@ -62,6 +65,12 @@ def weighted_avg(values, weights):
 
 
 def main():
+    auth = OAuth2(
+        client_id = config("client_id"),
+        client_secret = config("client_secret"),
+        access_token= config("access_token"),
+    )
+    client = Client(auth)
     #ArgParser module for creating command line arguments needed to run script
     parser = argparse.ArgumentParser(
         description="Calculate page performance metrics",
@@ -98,10 +107,9 @@ def main():
         "-i",
         "--input_file",
         metavar="inputfile",
-        nargs=1,
+        nargs="?",
         type=argparse.FileType("r"),
-        help="File path to the data",
-        required=True,
+        help="Override default file found on Box with a user specified dataset",
     )
     parser.add_argument(
         "-o",
@@ -118,21 +126,41 @@ def main():
         metavar="activeurlfile",
         nargs="?",
         type=str,
-        default="C:\\Users\\MatthewMorrow\\OneDrive - Hendall Inc\\laptop_transfer_files\\GitHub\\HSICC\\bigquery\\performance\\data\\eclkc_urls_200_status_code.csv",
-        help="Override default active URLs file",
+        help="Override default file found on Box with a user specified active URLs dataset",
     )
     args = parser.parse_args()
-    eclkc_active_urls = pd.read_csv(args.active_urls_file, encoding="latin-1")
-    source_dataset = pd.read_csv(
-        args.input_file[0],
-        encoding="latin-1",
-        usecols=[
-            "event_date",
-            "page_url",
-            "page_load_time_ms",
-            "server_response_time_ms",
-        ],
-    )
+
+    #If the user did not specify
+    if(args.active_urls_file is None):
+        eclkc_active_urls_id = eclkc_active_urls_id = config("eclkc_active_urls_id")
+        eclkc_active_urls_file_url = client.file(eclkc_active_urls_id).get_download_url()
+        eclkc_active_urls = pd.read_csv(eclkc_active_urls_file_url, encoding="latin-1")
+    else:
+        eclkc_active_urls = pd.read_csv(args.active_urls_file, encoding="latin-1")
+
+    
+    if(args.input_file is None):
+        raw_bq_results_id = config("raw_big_query_results_box_id")
+        raw_results_file_url = client.file(raw_bq_results_id).get_download_url()
+        source_dataset = pd.read_csv(raw_results_file_url, encoding="latin-1",
+            usecols=[
+                "event_date",
+                "page_url",
+                "page_load_time_ms",
+                "server_response_time_ms",
+            ],
+        )
+    else:
+        source_dataset = pd.read_csv(
+            args.input_file[0],
+            encoding="latin-1",
+            usecols=[
+                "event_date",
+                "page_url",
+                "page_load_time_ms",
+                "server_response_time_ms",
+            ],
+        )
     source_dataset["event_date"] = pd.to_datetime(
         source_dataset["event_date"], format="%Y%m%d"
     )
@@ -182,41 +210,45 @@ def main():
         previous_raw_results.to_excel(
             writer, sheet_name="previous_raw_results", index=False
         )
-        print("Previous raw results written")
+        print("Previous Raw Results written")
 
         current_raw_results.to_excel(
             writer, sheet_name="current_raw_results", index=False
         )
-        print("Current raw results written")
+        print("Current Raw Results written")
 
         top_level_summary.to_excel(writer, sheet_name="top_level", index=False)
-        print("Top level summary results written")
+        print("Top Level Summary Results written")
 
         external_comparison_summary.to_excel(
             writer, sheet_name="external_comparison", index=False
         )
-        print("External comparison summary results written")
+        print("External Comparison Summary Results written")
 
         calculated_grouped_by_page_path.to_excel(
             writer, sheet_name="grouped_by_page_path", index=False
         )
-        print("Grouped by page path results written")
+        print("Grouped by Page Path Results written")
 
         calculated_grouped_by_page_url.to_excel(
             writer, sheet_name="grouped_by_page_url", index=False
         )
-        print("Grouped by page URL results written")
+        print("Grouped by Page URL Results written")
 
         top_pageview_changes.to_excel(
             writer, sheet_name="top_pageview_changes", index=False
         )
-        print("Top pageview change results written")
+        print("Top Pageview Change Results written")
 
         change_outliers.to_excel(writer, sheet_name="change_outliers", index=False)
-        print("Change outlier results written")
+        print("Change Outlier Results written")
 
         current_outliers.to_excel(writer, sheet_name="current_outliers", index=False)
-        print("Current outlier results written")
+        print("Current Outlier Results written")
+    
+    print("Results finalized. Uploading to Box")
+    upload_file = client.folder(config("box_folder_for_uploads")).upload(args.output_file, file_name="results_{start_value}-{end_value}.xlsx".format(start_value = args.previous_start_date[0], end_value= args.current_start_date[0]), file_description="Sample Description")
+    print("Results uploaded to Box here: https://app.box.com/file/{file_id}".format(file_id = upload_file.id))
 
 
 """
