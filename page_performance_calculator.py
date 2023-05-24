@@ -13,6 +13,13 @@ import argparse
 from decouple import config
 from boxsdk import OAuth2, Client
 
+from google.cloud import bigquery
+from google.oauth2 import service_account
+
+credentials = service_account.Credentials.from_service_account_file(
+    "C:\\Users\\MatthewMorrow\\OneDrive - Hendall Inc\\Everything Else\\Documents\\dev\\page-performance\\hsicc-eblasts-analytics-1d54ac154638.json", scopes=["https://www.googleapis.com/auth/cloud-platform"],
+)
+
 
 previous_raw_results = pd.DataFrame()
 current_raw_results = pd.DataFrame()
@@ -27,6 +34,9 @@ top_pageview_changes = pd.DataFrame()
 change_outliers = pd.DataFrame()
 current_outliers = pd.DataFrame()
 
+#Raw results and active URL locations in GCS
+bucket_location_for_raw_data = "gs://eclkc_advanced_analytics/page_performance_results.csv"
+bucket_location_for_active_urls = "gs://eclkc_advanced_analytics/eclkc_urls_200_status_code.csv"
 
 """
 Helper function for percent difference and returns N/A if previous value is null
@@ -65,14 +75,16 @@ def weighted_avg(values, weights):
 
 
 def main():
-    program_start_time = datetime.now()
+    program_start_time = datetime.datetime.now()
 
-    auth = OAuth2(
+    #Authentication for uploading results to Box
+    #TODO Rewrite to GCS if wanted
+    """ auth = OAuth2(
         client_id = config("client_id"),
         client_secret = config("client_secret"),
         access_token= config("access_token"),
     )
-    client = Client(auth)
+    client = Client(auth) """
     #ArgParser module for creating command line arguments needed to run script
     parser = argparse.ArgumentParser(
         description="Calculate page performance metrics",
@@ -134,18 +146,24 @@ def main():
 
     #If the user did not specify
     if(args.active_urls_file is None):
-        print("Getting active URLs file from Box")
+        """ print("Getting active URLs file from Box")
         eclkc_active_urls_id = eclkc_active_urls_id = config("eclkc_active_urls_id")
         eclkc_active_urls_file_url = client.file(eclkc_active_urls_id).get_download_url()
         eclkc_active_urls = pd.read_csv(eclkc_active_urls_file_url, encoding="latin-1")
-        print("Active URLs file read from Box")
+        print("Active URLs file read from Box") """
+
+        print("Getting active URLs file from GCS")
+        eclkc_active_urls = pd.read_csv(bucket_location_for_active_urls, encoding="latin-1",
+                 storage_options={"token": credentials})
+        print("Active URLs file read from GCS")
+
     else:
         print("Reading active URLs file from path")
         eclkc_active_urls = pd.read_csv(args.active_urls_file, encoding="latin-1")
 
     
     if(args.input_file is None):
-        print("Getting source file from Box")
+        """ print("Getting source file from Box")
         raw_bq_results_id = config("raw_big_query_results_box_id")
         raw_results_file_url = client.file(raw_bq_results_id).get_download_url()
         source_dataset = pd.read_csv(raw_results_file_url, encoding="latin-1",
@@ -156,7 +174,18 @@ def main():
                 "server_response_time_ms",
             ],
         )
-        print("Source file read from Box")
+        print("Source file read from Box") """
+
+        print("Getting source file from GCS")
+        source_dataset = pd.read_csv(bucket_location_for_raw_data, encoding="latin-1", storage_options={"token": credentials}, 
+            usecols=[
+                "event_date",
+                "page_url",
+                "page_load_time_ms",
+                "server_response_time_ms",
+            ],
+        )
+        print("Source file read from GCS")
     else:
         print("Reading source file from path")
         source_dataset = pd.read_csv(
@@ -256,10 +285,9 @@ def main():
     
     print("Results finalized. Uploading to Box")
     
-    upload_file = client.folder(config("box_folder_for_uploads")).upload(args.output_file, file_name="results_{start_value}-{end_value}-{datetime_now}.xlsx".format(start_value = args.previous_start_date[0], end_value= args.current_start_date[0], datetime_now = datetime.datetime.now().strftime("%H%M%S")), file_description="Sample Description")
-    program_end_time = datetime.now()
-    print("Results uploaded to Box here: https://app.box.com/file/{file_id}".format(file_id = upload_file.id))
-    # do your work here
+    #upload_file = client.folder(config("box_folder_for_uploads")).upload(args.output_file, file_name="results_{start_value}-{end_value}-{datetime_now}.xlsx".format(start_value = args.previous_start_date[0], end_value= args.current_start_date[0], datetime_now = datetime.datetime.now().strftime("%H%M%S")), file_description="Sample Description")
+    program_end_time = datetime.datetime.now()
+    #print("Results uploaded to Box here: https://app.box.com/file/{file_id}".format(file_id = upload_file.id))
     print('\nProgram Runtime Duration: {}'.format(program_end_time - program_start_time))
 
 
