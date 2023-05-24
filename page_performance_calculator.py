@@ -569,7 +569,10 @@ def create_top_results(previous_raw, previous_group, current_raw, current_group)
 def create_external_metrics(current_raw, current_group):
     print("Calculating External Metrics Results")
     external_metrics = [
-        ">5 secs:",
+        ">60 secs:",
+        ">30 - <=60 secs:",
+        ">10 - <=30 secs:",
+        ">5 - <=10 secs:",
         ">2.9 - <=5 secs:",
         ">1.7 - <=2.9 secs:",
         ">0.8 - <=1.7 secs:",
@@ -583,16 +586,32 @@ def create_external_metrics(current_raw, current_group):
     ]
 
     page_url_counts = [
-        current_group["plt_avg"].gt(5).sum(),
+        current_group["plt_avg"].gt(60).sum(),
+        (current_group["plt_avg"].le(60) & current_group["plt_avg"].gt(30)).sum(),
+        (current_group["plt_avg"].le(30) & current_group["plt_avg"].gt(10)).sum(),
+        (current_group["plt_avg"].le(10) & current_group["plt_avg"].gt(5)).sum(),
         (current_group["plt_avg"].le(5) & current_group["plt_avg"].gt(2.9)).sum(),
         (current_group["plt_avg"].le(2.9) & current_group["plt_avg"].gt(1.7)).sum(),
         (current_group["plt_avg"].le(1.7) & current_group["plt_avg"].gt(0.8)).sum(),
         current_group["plt_avg"].le(0.8).sum(),
         current_group["page_url_cleaned"].count(),
     ]
-
+    percent_urls = [
+        current_group["plt_avg"].gt(60).sum()/current_group["page_url_cleaned"].count(),
+        (current_group["plt_avg"].le(60) & current_group["plt_avg"].gt(30)).sum()/current_group["page_url_cleaned"].count(),
+        (current_group["plt_avg"].le(30) & current_group["plt_avg"].gt(10)).sum()/current_group["page_url_cleaned"].count(),
+        (current_group["plt_avg"].le(10) & current_group["plt_avg"].gt(5)).sum()/current_group["page_url_cleaned"].count(),
+        (current_group["plt_avg"].le(5) & current_group["plt_avg"].gt(2.9)).sum()/current_group["page_url_cleaned"].count(),
+        (current_group["plt_avg"].le(2.9) & current_group["plt_avg"].gt(1.7)).sum()/current_group["page_url_cleaned"].count(),
+        (current_group["plt_avg"].le(1.7) & current_group["plt_avg"].gt(0.8)).sum()/current_group["page_url_cleaned"].count(),
+        current_group["plt_avg"].le(0.8).sum()/current_group["page_url_cleaned"].count(),
+        current_group["page_url_cleaned"].count()/current_group["page_url_cleaned"].count()
+    ]
     pageview_counts = [
-        current_raw["plt_sec"].gt(5).sum(),
+        current_raw["plt_sec"].gt(60).sum(),
+        (current_raw["plt_sec"].le(60) & current_raw["plt_sec"].gt(30)).sum(),
+        (current_raw["plt_sec"].le(30) & current_raw["plt_sec"].gt(10)).sum(),
+        (current_raw["plt_sec"].le(10) & current_raw["plt_sec"].gt(5)).sum(),
         (current_raw["plt_sec"].le(5) & current_raw["plt_sec"].gt(2.9)).sum(),
         (current_raw["plt_sec"].le(2.9) & current_raw["plt_sec"].gt(1.7)).sum(),
         (current_raw["plt_sec"].le(1.7) & current_raw["plt_sec"].gt(0.8)).sum(),
@@ -600,11 +619,25 @@ def create_external_metrics(current_raw, current_group):
         current_raw["page_url"].count(),
     ]
 
+    percent_pages = [
+        current_raw["plt_sec"].gt(60).sum()/current_raw["page_url"].count(),
+        (current_raw["plt_sec"].le(60) & current_raw["plt_sec"].gt(30)).sum()/current_raw["page_url"].count(),
+        (current_raw["plt_sec"].le(30) & current_raw["plt_sec"].gt(10)).sum()/current_raw["page_url"].count(),
+        (current_raw["plt_sec"].le(10) & current_raw["plt_sec"].gt(5)).sum()/current_raw["page_url"].count(),
+        (current_raw["plt_sec"].le(5) & current_raw["plt_sec"].gt(2.9)).sum()/current_raw["page_url"].count(),
+        (current_raw["plt_sec"].le(2.9) & current_raw["plt_sec"].gt(1.7)).sum()/current_raw["page_url"].count(),
+        (current_raw["plt_sec"].le(1.7) & current_raw["plt_sec"].gt(0.8)).sum()/current_raw["page_url"].count(),
+        current_raw["plt_sec"].le(0.8).sum()/current_raw["page_url"].count(),
+        current_raw["page_url"].count()/current_raw["page_url"].count()
+    ]
+
     external_results = pd.DataFrame(
         {
             "Metrics": external_metrics,
             "Number of Page URLs": page_url_counts,
+            "Percent of Total Page URLs": percent_urls,
             "Number of Pageviews": pageview_counts,
+            "Percent of Total Pageviews": percent_pages,
         }
     )
     return external_results
