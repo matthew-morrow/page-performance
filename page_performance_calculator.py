@@ -65,6 +65,8 @@ def weighted_avg(values, weights):
 
 
 def main():
+    program_start_time = datetime.now()
+
     auth = OAuth2(
         client_id = config("client_id"),
         client_secret = config("client_secret"),
@@ -132,14 +134,18 @@ def main():
 
     #If the user did not specify
     if(args.active_urls_file is None):
+        print("Getting active URLs file from Box")
         eclkc_active_urls_id = eclkc_active_urls_id = config("eclkc_active_urls_id")
         eclkc_active_urls_file_url = client.file(eclkc_active_urls_id).get_download_url()
         eclkc_active_urls = pd.read_csv(eclkc_active_urls_file_url, encoding="latin-1")
+        print("Active URLs file read from Box")
     else:
+        print("Reading active URLs file from path")
         eclkc_active_urls = pd.read_csv(args.active_urls_file, encoding="latin-1")
 
     
     if(args.input_file is None):
+        print("Getting source file from Box")
         raw_bq_results_id = config("raw_big_query_results_box_id")
         raw_results_file_url = client.file(raw_bq_results_id).get_download_url()
         source_dataset = pd.read_csv(raw_results_file_url, encoding="latin-1",
@@ -150,7 +156,9 @@ def main():
                 "server_response_time_ms",
             ],
         )
+        print("Source file read from Box")
     else:
+        print("Reading source file from path")
         source_dataset = pd.read_csv(
             args.input_file[0],
             encoding="latin-1",
@@ -164,7 +172,7 @@ def main():
     source_dataset["event_date"] = pd.to_datetime(
         source_dataset["event_date"], format="%Y%m%d"
     )
-    print("Calculating results:")
+    print("\nCalculating results:")
     previous_raw_results = calculate_time_frame(
         args.previous_start_date[0], args.time_frame, source_dataset, eclkc_active_urls
     )
@@ -247,8 +255,12 @@ def main():
         print("Current Outlier Results written")
     
     print("Results finalized. Uploading to Box")
-    upload_file = client.folder(config("box_folder_for_uploads")).upload(args.output_file, file_name="results_{start_value}-{end_value}.xlsx".format(start_value = args.previous_start_date[0], end_value= args.current_start_date[0]), file_description="Sample Description")
+    
+    upload_file = client.folder(config("box_folder_for_uploads")).upload(args.output_file, file_name="results_{start_value}-{end_value}-{datetime_now}.xlsx".format(start_value = args.previous_start_date[0], end_value= args.current_start_date[0], datetime_now = datetime.datetime.now().strftime("%H%M%S")), file_description="Sample Description")
+    program_end_time = datetime.now()
     print("Results uploaded to Box here: https://app.box.com/file/{file_id}".format(file_id = upload_file.id))
+    # do your work here
+    print('\nProgram Runtime Duration: {}'.format(program_end_time - program_start_time))
 
 
 """
