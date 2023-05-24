@@ -17,7 +17,7 @@ from google.cloud import bigquery
 from google.oauth2 import service_account
 
 credentials = service_account.Credentials.from_service_account_file(
-    "C:\\Users\\MatthewMorrow\\OneDrive - Hendall Inc\\Everything Else\\Documents\\dev\\page-performance\\hsicc-eblasts-analytics-1d54ac154638.json", scopes=["https://www.googleapis.com/auth/cloud-platform"],
+    ".\\hsicc-eblasts-analytics-1d54ac154638.json", scopes=["https://www.googleapis.com/auth/cloud-platform"],
 )
 
 
@@ -123,7 +123,7 @@ def main():
         metavar="inputfile",
         nargs="?",
         type=argparse.FileType("r"),
-        help="Override default file found on Box with a user specified dataset",
+        help="Override default file found on GCS with a user specified dataset",
     )
     parser.add_argument(
         "-o",
