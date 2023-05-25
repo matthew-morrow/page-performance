@@ -2,7 +2,7 @@ from google.cloud import bigquery
 from google.oauth2 import service_account
 
 credentials = service_account.Credentials.from_service_account_file(
-    "C:\\Users\\MatthewMorrow\\OneDrive - Hendall Inc\\Everything Else\\Documents\\dev\\page-performance\\hsicc-eblasts-analytics-1d54ac154638.json", scopes=["https://www.googleapis.com/auth/cloud-platform"],
+    ".\\hsicc-eblasts-analytics-1d54ac154638.json", scopes=["https://www.googleapis.com/auth/cloud-platform"],
 )
 
 bq_client = bigquery.Client(credentials=credentials, project=credentials.project_id,)

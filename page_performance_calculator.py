@@ -1,7 +1,8 @@
 """
 @python_version 3.11.1
-@program_version 1.0
-@program_date 2023.04.26
+@program_version 1.2
+@program_publish_date 2023.04.26
+@program_modified_date 2023.05.25
 @program_author Matthew Morrow
 @program_description This program generates the various page performance reports based on user dictated start dates, timeframe window, and input file with the raw performance data.
 """
@@ -11,7 +12,9 @@ import pandas as pd
 import sys
 import argparse
 from decouple import config
-from boxsdk import OAuth2, Client
+#from boxsdk import OAuth2, Client
+from styleframe import StyleFrame, Styler, utils
+
 
 from google.cloud import bigquery
 from google.oauth2 import service_account
@@ -142,6 +145,14 @@ def main():
         type=str,
         help="Override default file found on Box with a user specified active URLs dataset",
     )
+    parser.add_argument(
+        "-rd",
+        "--raw_datasets",
+        metavar="rawdatasets",
+        nargs="?",
+        type=str,
+        help="If a path is specified, will write out the two raw datasets to an additional file for further analysis",
+    )
     args = parser.parse_args()
 
     #If the user did not specify
@@ -189,7 +200,7 @@ def main():
     else:
         print("Reading source file from path")
         source_dataset = pd.read_csv(
-            args.input_file[0],
+            args.input_file,
             encoding="latin-1",
             usecols=[
                 "event_date",
@@ -222,9 +233,18 @@ def main():
         current_raw_results,
         current_grouped_by_url,
     )
+    styled_top_level_summary = StyleFrame(top_level_summary)
+    styled_top_level_summary.apply_column_style(cols_to_style=['Pageview % Change', 'Page Load Time % Change', 'Server Response Time % Change'],
+                      styler_obj=Styler(number_format=utils.number_formats.percent))
+    styled_top_level_summary.apply_column_style(cols_to_style=['Page Load Times (sec)', 'Server Response Times (sec)'],
+                      styler_obj=Styler(number_format=utils.number_formats.general_float))
+
     external_comparison_summary = create_external_metrics(
         current_raw_results, current_grouped_by_url
     )
+    styled_external_comparison_summary = StyleFrame(external_comparison_summary)
+    styled_external_comparison_summary.apply_column_style(cols_to_style=['Percent of Total Page URLs', 'Percent of Total Pageviews'],
+                      styler_obj=Styler(number_format=utils.number_formats.percent))
 
     previous_grouped_by_page_path = group_by_page_path(previous_raw_results)
     current_grouped_by_page_path = group_by_page_path(current_raw_results)
@@ -240,55 +260,60 @@ def main():
     current_outliers = create_current_outliers(
         current_raw_results, calculated_grouped_by_page_url
     )
+    if(args.raw_datasets is None):
+        print("\nSkipped writing raw datasets to file\n")
+
+    else:
+        with pd.ExcelWriter(args.raw_datasets) as writer:
+            print("\nWriting datasets to file:")
+            previous_raw_results.to_excel(
+                writer, sheet_name="previous_raw_results", index=False, freeze_panes=(1, 0)
+            )
+            print("Previous Raw Results written")
+
+            current_raw_results.to_excel(
+                writer, sheet_name="current_raw_results", index=False, freeze_panes=(1, 0)
+            )
+            print("Current Raw Results written")
 
     #Write out all of the dataframe results to their respective sheets in an excel file
-    with pd.ExcelWriter(args.output_file) as writer:
+    with StyleFrame.ExcelWriter(args.output_file) as writer:
         print("\nWriting results to file:")
-        previous_raw_results.to_excel(
-            writer, sheet_name="previous_raw_results", index=False
-        )
-        print("Previous Raw Results written")
-
-        current_raw_results.to_excel(
-            writer, sheet_name="current_raw_results", index=False
-        )
-        print("Current Raw Results written")
-
-        top_level_summary.to_excel(writer, sheet_name="top_level", index=False)
+        styled_top_level_summary.to_excel(writer, sheet_name="top_level", index=False, freeze_panes=(1, 0), best_fit=list(styled_top_level_summary.columns))
         print("Top Level Summary Results written")
 
-        external_comparison_summary.to_excel(
-            writer, sheet_name="external_comparison", index=False
+        styled_external_comparison_summary.to_excel(
+            writer, sheet_name="external_comparison", index=False, freeze_panes=(1, 0), best_fit=list(styled_external_comparison_summary.columns)
         )
         print("External Comparison Summary Results written")
 
-        calculated_grouped_by_page_path.to_excel(
-            writer, sheet_name="grouped_by_page_path", index=False
+        StyleFrame(calculated_grouped_by_page_path).to_excel(
+            writer, sheet_name="grouped_by_page_path", index=False, freeze_panes=(1, 0), best_fit=list(calculated_grouped_by_page_path.columns)
         )
         print("Grouped by Page Path Results written")
 
-        calculated_grouped_by_page_url.to_excel(
-            writer, sheet_name="grouped_by_page_url", index=False
+        StyleFrame(calculated_grouped_by_page_url).to_excel(
+            writer, sheet_name="grouped_by_page_url", index=False, freeze_panes=(1, 0), best_fit=list(calculated_grouped_by_page_url.columns)
         )
         print("Grouped by Page URL Results written")
 
-        top_pageview_changes.to_excel(
-            writer, sheet_name="top_pageview_changes", index=False
+        StyleFrame(top_pageview_changes).to_excel(
+            writer, sheet_name="top_pageview_changes", index=False, freeze_panes=(1, 0), best_fit=list(top_pageview_changes.columns)
         )
         print("Top Pageview Change Results written")
 
-        change_outliers.to_excel(writer, sheet_name="change_outliers", index=False)
+        StyleFrame(change_outliers).to_excel(writer, sheet_name="change_outliers", index=False, freeze_panes=(1, 0), best_fit=list(change_outliers.columns))
         print("Change Outlier Results written")
 
-        current_outliers.to_excel(writer, sheet_name="current_outliers", index=False)
+        StyleFrame(current_outliers).to_excel(writer, sheet_name="current_outliers", index=False, freeze_panes=(1, 0), best_fit=list(current_outliers.columns))
         print("Current Outlier Results written")
     
-    print("Results finalized. Uploading to Box")
+    print("Results finalized.")
     
     #upload_file = client.folder(config("box_folder_for_uploads")).upload(args.output_file, file_name="results_{start_value}-{end_value}-{datetime_now}.xlsx".format(start_value = args.previous_start_date[0], end_value= args.current_start_date[0], datetime_now = datetime.datetime.now().strftime("%H%M%S")), file_description="Sample Description")
     program_end_time = datetime.datetime.now()
     #print("Results uploaded to Box here: https://app.box.com/file/{file_id}".format(file_id = upload_file.id))
-    print('\nProgram Runtime Duration: {}'.format(program_end_time - program_start_time))
+    print('\nProgram Runtime Duration: {}\n'.format(program_end_time - program_start_time))
 
 
 """
@@ -596,6 +621,7 @@ def create_external_metrics(current_raw, current_group):
         current_group["plt_avg"].le(0.8).sum(),
         current_group["page_url_cleaned"].count(),
     ]
+
     percent_urls = [
         current_group["plt_avg"].gt(60).sum()/current_group["page_url_cleaned"].count(),
         (current_group["plt_avg"].le(60) & current_group["plt_avg"].gt(30)).sum()/current_group["page_url_cleaned"].count(),
@@ -607,6 +633,7 @@ def create_external_metrics(current_raw, current_group):
         current_group["plt_avg"].le(0.8).sum()/current_group["page_url_cleaned"].count(),
         current_group["page_url_cleaned"].count()/current_group["page_url_cleaned"].count()
     ]
+
     pageview_counts = [
         current_raw["plt_sec"].gt(60).sum(),
         (current_raw["plt_sec"].le(60) & current_raw["plt_sec"].gt(30)).sum(),
@@ -640,6 +667,9 @@ def create_external_metrics(current_raw, current_group):
             "Percent of Total Pageviews": percent_pages,
         }
     )
+
+    
+
     return external_results
 
 
