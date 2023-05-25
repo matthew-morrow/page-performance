@@ -2,4 +2,5 @@
 *.xlsx
 *.csv
 *.json
+feature_testing.py
 __pycache__

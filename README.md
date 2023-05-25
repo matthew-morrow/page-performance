@@ -11,9 +11,14 @@ pip install -r requirements.txt
 
 The current command line arguments require the starting date of both the previous and current timeframe. Optional arguments exist for user customization
 
-Basic sample command line with user in folder with script
+Base sample command line utilizing GCS for raw dataset and active URLs
 ```
-./page_performance_calculator.py -p 20230309 -c 20230330
+python ./page_performance_calculator.py -p 20230309 -c 20230330
+```
+
+Base sample command line with local copies of GCS files
+```
+python ./page_performance_calculator.py -p 20230309 -c 20230330 -i "./page_performance_results.csv" -a "./eclkc_urls_200_status_code.csv"
 ```
 
 Expanded arguments
@@ -35,6 +40,7 @@ Expanded arguments
 ## TODO
 
 - [x] Comment code
-- [ ] Upload Sample Files to Box
-- [ ] Implement ECLKC API for Link Checking
+- [ ] Write extensive README
+- [ ] Upload Files to GCS?
+- [ ] Implement ECLKC API for Link Checking?
 - [ ] Etc...
