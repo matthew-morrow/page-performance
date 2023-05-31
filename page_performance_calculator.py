@@ -1,28 +1,28 @@
 """
 @python_version 3.11.1
-@program_version 1.2
+@program_version 1.2.1
 @program_publish_date 2023.04.26
-@program_modified_date 2023.05.25
+@program_modified_date 2023.05.31
 @program_author Matthew Morrow
 @program_description This program generates the various page performance reports based on user dictated start dates, timeframe window, and input file with the raw performance data.
 """
-
 import datetime
 import pandas as pd
 import sys
 import argparse
-from decouple import config
-#from boxsdk import OAuth2, Client
-from styleframe import StyleFrame, Styler, utils
 
+# from decouple import config
+# from boxsdk import OAuth2, Client
+
+from styleframe import StyleFrame, Styler, utils
 
 from google.cloud import bigquery
 from google.oauth2 import service_account
 
 credentials = service_account.Credentials.from_service_account_file(
-    ".\\hsicc-eblasts-analytics-1d54ac154638.json", scopes=["https://www.googleapis.com/auth/cloud-platform"],
+    ".\\hsicc-eblasts-analytics-1d54ac154638.json",
+    scopes=["https://www.googleapis.com/auth/cloud-platform"],
 )
-
 
 previous_raw_results = pd.DataFrame()
 current_raw_results = pd.DataFrame()
@@ -37,9 +37,13 @@ top_pageview_changes = pd.DataFrame()
 change_outliers = pd.DataFrame()
 current_outliers = pd.DataFrame()
 
-#Raw results and active URL locations in GCS
-bucket_location_for_raw_data = "gs://eclkc_advanced_analytics/page_performance_results.csv"
-bucket_location_for_active_urls = "gs://eclkc_advanced_analytics/eclkc_urls_200_status_code.csv"
+# Raw results and active URL locations in GCS
+bucket_location_for_raw_data = (
+    "gs://eclkc_advanced_analytics/page_performance_results.csv"
+)
+bucket_location_for_active_urls = (
+    "gs://eclkc_advanced_analytics/eclkc_urls_200_status_code.csv"
+)
 
 """
 Helper function for percent difference and returns N/A if previous value is null
@@ -54,6 +58,7 @@ def per_diff(previous, current):
         return percent_difference
     except ZeroDivisionError:
         return "N/A"
+
 
 """
 Helper function for percentile calculation
@@ -80,15 +85,15 @@ def weighted_avg(values, weights):
 def main():
     program_start_time = datetime.datetime.now()
 
-    #Authentication for uploading results to Box
-    #TODO Rewrite to GCS if wanted
+    # Authentication for uploading results to Box
+    # TODO Rewrite to GCS if wanted
     """ auth = OAuth2(
         client_id = config("client_id"),
         client_secret = config("client_secret"),
         access_token= config("access_token"),
     )
     client = Client(auth) """
-    #ArgParser module for creating command line arguments needed to run script
+    # ArgParser module for creating command line arguments needed to run script
     parser = argparse.ArgumentParser(
         description="Calculate page performance metrics",
         epilog="Contact HSICC for further help or troubleshooting: hseclkc@gmail.com",
@@ -143,7 +148,7 @@ def main():
         metavar="activeurlfile",
         nargs="?",
         type=str,
-        help="Override default file found on Box with a user specified active URLs dataset",
+        help="Override default file found on GCS with a user specified active URLs dataset",
     )
     parser.add_argument(
         "-rd",
@@ -151,30 +156,32 @@ def main():
         metavar="rawdatasets",
         nargs="?",
         type=str,
-        help="If a path is specified, will write out the two raw datasets to an additional file for further analysis",
+        help="If a path is specified, will write out the two raw timeframe datasets to a seperate file for inspection",
     )
     args = parser.parse_args()
 
-    #If the user did not specify
-    if(args.active_urls_file is None):
-        """ print("Getting active URLs file from Box")
+    # If the user did not specify
+    if args.active_urls_file is None:
+        """print("Getting active URLs file from Box")
         eclkc_active_urls_id = eclkc_active_urls_id = config("eclkc_active_urls_id")
         eclkc_active_urls_file_url = client.file(eclkc_active_urls_id).get_download_url()
         eclkc_active_urls = pd.read_csv(eclkc_active_urls_file_url, encoding="latin-1")
-        print("Active URLs file read from Box") """
+        print("Active URLs file read from Box")"""
 
         print("Getting active URLs file from GCS")
-        eclkc_active_urls = pd.read_csv(bucket_location_for_active_urls, encoding="latin-1",
-                 storage_options={"token": credentials})
+        eclkc_active_urls = pd.read_csv(
+            bucket_location_for_active_urls,
+            encoding="latin-1",
+            storage_options={"token": credentials},
+        )
         print("Active URLs file read from GCS")
 
     else:
         print("Reading active URLs file from path")
         eclkc_active_urls = pd.read_csv(args.active_urls_file, encoding="latin-1")
 
-    
-    if(args.input_file is None):
-        """ print("Getting source file from Box")
+    if args.input_file is None:
+        """print("Getting source file from Box")
         raw_bq_results_id = config("raw_big_query_results_box_id")
         raw_results_file_url = client.file(raw_bq_results_id).get_download_url()
         source_dataset = pd.read_csv(raw_results_file_url, encoding="latin-1",
@@ -185,10 +192,13 @@ def main():
                 "server_response_time_ms",
             ],
         )
-        print("Source file read from Box") """
+        print("Source file read from Box")"""
 
         print("Getting source file from GCS")
-        source_dataset = pd.read_csv(bucket_location_for_raw_data, encoding="latin-1", storage_options={"token": credentials}, 
+        source_dataset = pd.read_csv(
+            bucket_location_for_raw_data,
+            encoding="latin-1",
+            storage_options={"token": credentials},
             usecols=[
                 "event_date",
                 "page_url",
@@ -233,18 +243,65 @@ def main():
         current_raw_results,
         current_grouped_by_url,
     )
+
     styled_top_level_summary = StyleFrame(top_level_summary)
-    styled_top_level_summary.apply_column_style(cols_to_style=['Pageview % Change', 'Page Load Time % Change', 'Server Response Time % Change'],
-                      styler_obj=Styler(number_format=utils.number_formats.percent))
-    styled_top_level_summary.apply_column_style(cols_to_style=['Page Load Times (sec)', 'Server Response Times (sec)'],
-                      styler_obj=Styler(number_format=utils.number_formats.general_float))
+    style_header_row(styled_top_level_summary)
+    styled_top_level_summary.apply_column_style(
+        cols_to_style=["Metrics"],
+        styler_obj=Styler(
+            number_format=utils.number_formats.general,
+            horizontal_alignment=utils.horizontal_alignments.left,
+        ),
+    )
+    styled_top_level_summary.apply_column_style(
+        cols_to_style=["Pages"],
+        styler_obj=Styler(horizontal_alignment=utils.horizontal_alignments.right),
+    )
+    styled_top_level_summary.apply_column_style(
+        cols_to_style=[
+            "Pageview % Change",
+            "Page Load Time % Change",
+            "Server Response Time % Change",
+        ],
+        styler_obj=Styler(
+            number_format=utils.number_formats.percent,
+            horizontal_alignment=utils.horizontal_alignments.right,
+        ),
+    )
+    styled_top_level_summary.apply_column_style(
+        cols_to_style=["Page Load Times (sec)", "Server Response Times (sec)"],
+        styler_obj=Styler(
+            number_format=utils.number_formats.general_float,
+            horizontal_alignment=utils.horizontal_alignments.right,
+        ),
+    )
 
     external_comparison_summary = create_external_metrics(
         current_raw_results, current_grouped_by_url
     )
     styled_external_comparison_summary = StyleFrame(external_comparison_summary)
-    styled_external_comparison_summary.apply_column_style(cols_to_style=['Percent of Total Page URLs', 'Percent of Total Pageviews'],
-                      styler_obj=Styler(number_format=utils.number_formats.percent))
+    style_header_row(styled_external_comparison_summary)
+    styled_external_comparison_summary.apply_column_style(
+        cols_to_style=["Metrics"],
+        styler_obj=Styler(
+            number_format=utils.number_formats.general,
+            horizontal_alignment=utils.horizontal_alignments.left,
+        ),
+    )
+    styled_external_comparison_summary.apply_column_style(
+        cols_to_style=["Percent of Total Page URLs", "Percent of Total Pageviews"],
+        styler_obj=Styler(
+            number_format=utils.number_formats.percent,
+            horizontal_alignment=utils.horizontal_alignments.right,
+        ),
+    )
+    styled_external_comparison_summary.apply_column_style(
+        cols_to_style=["Number of Page URLs", "Number of Pageviews"],
+        styler_obj=Styler(
+            number_format=utils.number_formats.general_integer,
+            horizontal_alignment=utils.horizontal_alignments.right,
+        ),
+    )
 
     previous_grouped_by_page_path = group_by_page_path(previous_raw_results)
     current_grouped_by_page_path = group_by_page_path(current_raw_results)
@@ -252,68 +309,187 @@ def main():
     calculated_grouped_by_page_path = create_grouped_by_page_path(
         previous_grouped_by_page_path, current_grouped_by_page_path
     )
+    styled_calculated_grouped_by_page_path = StyleFrame(calculated_grouped_by_page_path)
+    style_header_row(styled_calculated_grouped_by_page_path)
+    styled_calculated_grouped_by_page_path.apply_column_style(
+        cols_to_style=["page_path_one"],
+        styler_obj=Styler(
+            number_format=utils.number_formats.general,
+            horizontal_alignment=utils.horizontal_alignments.left,
+        ),
+    )
+    styled_calculated_grouped_by_page_path.apply_column_style(
+        cols_to_style=["pages", "pv"],
+        styler_obj=Styler(
+            number_format=utils.number_formats.general_integer,
+            horizontal_alignment=utils.horizontal_alignments.right,
+        ),
+    )
+    styled_calculated_grouped_by_page_path.apply_column_style(
+        cols_to_style=["pv_percent_of_total","pv_percent_change", "plt_percent_change", "srt_percent_change"],
+        styler_obj=Styler(
+            number_format=utils.number_formats.percent,
+            horizontal_alignment=utils.horizontal_alignments.right,
+        ),
+    )
+    styled_calculated_grouped_by_page_path.apply_column_style(
+        cols_to_style=["plt_avg","srt_avg"],
+        styler_obj=Styler(
+            number_format=utils.number_formats.general_float,
+            horizontal_alignment=utils.horizontal_alignments.right,
+        ),
+    )
 
     top_pageview_changes = create_top_pageview_changes(calculated_grouped_by_page_url)
+    styled_top_pageview_changes = StyleFrame(top_pageview_changes)
+    style_header_row(styled_top_pageview_changes)
+    styled_top_pageview_changes.apply_column_style(
+        cols_to_style=["page_url_cleaned"],
+        styler_obj=Styler(
+            number_format=utils.number_formats.general,
+            horizontal_alignment=utils.horizontal_alignments.left,
+        ),
+    )
+    styled_top_pageview_changes.apply_column_style(
+        cols_to_style=["pv_current"],
+        styler_obj=Styler(
+            number_format=utils.number_formats.general_integer,
+            horizontal_alignment=utils.horizontal_alignments.right,
+        ),
+    )
+    styled_top_pageview_changes.apply_column_style(
+        cols_to_style=["pv_percent_of_total","pv_percent_change"],
+        styler_obj=Styler(
+            number_format=utils.number_formats.percent,
+            horizontal_alignment=utils.horizontal_alignments.right,
+        ),
+    )
 
     change_outliers = create_change_outliers(calculated_grouped_by_page_url)
 
     current_outliers = create_current_outliers(
         current_raw_results, calculated_grouped_by_page_url
     )
-    if(args.raw_datasets is None):
+
+    styled_calculated_grouped_by_page_url = StyleFrame(calculated_grouped_by_page_url)
+
+    style_header_row(styled_calculated_grouped_by_page_url)
+    styled_calculated_grouped_by_page_url.apply_style_by_indexes(
+        indexes_to_style=styled_calculated_grouped_by_page_url[
+            styled_calculated_grouped_by_page_url["outlier_value"] != "N/A"
+        ],
+        styler_obj=Styler(bg_color="#F25454", bold=True, horizontal_alignment=utils.horizontal_alignments.right),
+    )
+    styled_calculated_grouped_by_page_url.apply_style_by_indexes(
+        indexes_to_style=styled_calculated_grouped_by_page_url[
+            styled_calculated_grouped_by_page_url["outlier_value"] == "N/A"
+        ],
+        styler_obj=Styler(horizontal_alignment=utils.horizontal_alignments.right),
+    )
+
+    if args.raw_datasets is None:
         print("\nSkipped writing raw datasets to file\n")
 
     else:
         with pd.ExcelWriter(args.raw_datasets) as writer:
             print("\nWriting datasets to file:")
             previous_raw_results.to_excel(
-                writer, sheet_name="previous_raw_results", index=False, freeze_panes=(1, 0)
+                writer,
+                sheet_name="previous_raw_results",
+                index=False,
+                freeze_panes=(1, 0),
             )
             print("Previous Raw Results written")
 
             current_raw_results.to_excel(
-                writer, sheet_name="current_raw_results", index=False, freeze_panes=(1, 0)
+                writer,
+                sheet_name="current_raw_results",
+                index=False,
+                freeze_panes=(1, 0),
             )
             print("Current Raw Results written")
 
-    #Write out all of the dataframe results to their respective sheets in an excel file
+    # Write out all of the dataframe results to their respective sheets in an excel file
     with StyleFrame.ExcelWriter(args.output_file) as writer:
         print("\nWriting results to file:")
-        styled_top_level_summary.to_excel(writer, sheet_name="top_level", index=False, freeze_panes=(1, 0), best_fit=list(styled_top_level_summary.columns))
+        styled_top_level_summary.to_excel(
+            writer,
+            sheet_name="top_level",
+            index=False,
+            freeze_panes=(1, 0),
+            row_to_add_filters=0,
+            best_fit=list(styled_top_level_summary.columns),
+        )
         print("Top Level Summary Results written")
 
         styled_external_comparison_summary.to_excel(
-            writer, sheet_name="external_comparison", index=False, freeze_panes=(1, 0), best_fit=list(styled_external_comparison_summary.columns)
+            writer,
+            sheet_name="external_comparison",
+            index=False,
+            freeze_panes=(1, 0),
+            row_to_add_filters=0,
+            best_fit=list(styled_external_comparison_summary.columns),
         )
         print("External Comparison Summary Results written")
 
-        StyleFrame(calculated_grouped_by_page_path).to_excel(
-            writer, sheet_name="grouped_by_page_path", index=False, freeze_panes=(1, 0), best_fit=list(calculated_grouped_by_page_path.columns)
+        styled_calculated_grouped_by_page_path.to_excel(
+            writer,
+            sheet_name="grouped_by_page_path",
+            index=False,
+            freeze_panes=(1, 0),
+            row_to_add_filters=0,
+            best_fit=list(styled_calculated_grouped_by_page_path.columns),
         )
         print("Grouped by Page Path Results written")
 
-        StyleFrame(calculated_grouped_by_page_url).to_excel(
-            writer, sheet_name="grouped_by_page_url", index=False, freeze_panes=(1, 0), best_fit=list(calculated_grouped_by_page_url.columns)
+        styled_calculated_grouped_by_page_url.to_excel(
+            writer,
+            sheet_name="grouped_by_page_url",
+            index=False,
+            freeze_panes=(1, 0),
+            row_to_add_filters=0,
+            best_fit=list(styled_calculated_grouped_by_page_url.columns),
         )
         print("Grouped by Page URL Results written")
 
-        StyleFrame(top_pageview_changes).to_excel(
-            writer, sheet_name="top_pageview_changes", index=False, freeze_panes=(1, 0), best_fit=list(top_pageview_changes.columns)
+        styled_top_pageview_changes.to_excel(
+            writer,
+            sheet_name="top_pageview_changes",
+            index=False,
+            freeze_panes=(1, 0),
+            row_to_add_filters=0,
+            best_fit=list(styled_top_pageview_changes.columns),
         )
         print("Top Pageview Change Results written")
 
-        StyleFrame(change_outliers).to_excel(writer, sheet_name="change_outliers", index=False, freeze_panes=(1, 0), best_fit=list(change_outliers.columns))
+        StyleFrame(change_outliers).to_excel(
+            writer,
+            sheet_name="change_outliers",
+            index=False,
+            freeze_panes=(1, 0),
+            row_to_add_filters=0,
+            best_fit=list(change_outliers.columns),
+        )
         print("Change Outlier Results written")
 
-        StyleFrame(current_outliers).to_excel(writer, sheet_name="current_outliers", index=False, freeze_panes=(1, 0), best_fit=list(current_outliers.columns))
+        StyleFrame(current_outliers).to_excel(
+            writer,
+            sheet_name="current_outliers",
+            index=False,
+            freeze_panes=(1, 0),
+            row_to_add_filters=0,
+            best_fit=list(current_outliers.columns),
+        )
         print("Current Outlier Results written")
-    
+
     print("Results finalized.")
-    
-    #upload_file = client.folder(config("box_folder_for_uploads")).upload(args.output_file, file_name="results_{start_value}-{end_value}-{datetime_now}.xlsx".format(start_value = args.previous_start_date[0], end_value= args.current_start_date[0], datetime_now = datetime.datetime.now().strftime("%H%M%S")), file_description="Sample Description")
+
+    # upload_file = client.folder(config("box_folder_for_uploads")).upload(args.output_file, file_name="results_{start_value}-{end_value}-{datetime_now}.xlsx".format(start_value = args.previous_start_date[0], end_value= args.current_start_date[0], datetime_now = datetime.datetime.now().strftime("%H%M%S")), file_description="Sample Description")
     program_end_time = datetime.datetime.now()
-    #print("Results uploaded to Box here: https://app.box.com/file/{file_id}".format(file_id = upload_file.id))
-    print('\nProgram Runtime Duration: {}\n'.format(program_end_time - program_start_time))
+    # print("Results uploaded to Box here: https://app.box.com/file/{file_id}".format(file_id = upload_file.id))
+    print(
+        "\nProgram Runtime Duration: {}\n".format(program_end_time - program_start_time)
+    )
 
 
 """
@@ -365,6 +541,7 @@ def cleanup_input_raw_results(to_clean_dataframe, active_urls):
     ].reset_index()
     return to_clean_dataframe
 
+
 """
 Function for grouping values in the dataframe by the URL
 
@@ -384,6 +561,7 @@ def group_by_page_url(to_group_dataframe):
         .reset_index()
     )
     return grouped
+
 
 """
 Function for grouping values in the dataframe by the page path
@@ -623,15 +801,24 @@ def create_external_metrics(current_raw, current_group):
     ]
 
     percent_urls = [
-        current_group["plt_avg"].gt(60).sum()/current_group["page_url_cleaned"].count(),
-        (current_group["plt_avg"].le(60) & current_group["plt_avg"].gt(30)).sum()/current_group["page_url_cleaned"].count(),
-        (current_group["plt_avg"].le(30) & current_group["plt_avg"].gt(10)).sum()/current_group["page_url_cleaned"].count(),
-        (current_group["plt_avg"].le(10) & current_group["plt_avg"].gt(5)).sum()/current_group["page_url_cleaned"].count(),
-        (current_group["plt_avg"].le(5) & current_group["plt_avg"].gt(2.9)).sum()/current_group["page_url_cleaned"].count(),
-        (current_group["plt_avg"].le(2.9) & current_group["plt_avg"].gt(1.7)).sum()/current_group["page_url_cleaned"].count(),
-        (current_group["plt_avg"].le(1.7) & current_group["plt_avg"].gt(0.8)).sum()/current_group["page_url_cleaned"].count(),
-        current_group["plt_avg"].le(0.8).sum()/current_group["page_url_cleaned"].count(),
-        current_group["page_url_cleaned"].count()/current_group["page_url_cleaned"].count()
+        current_group["plt_avg"].gt(60).sum()
+        / current_group["page_url_cleaned"].count(),
+        (current_group["plt_avg"].le(60) & current_group["plt_avg"].gt(30)).sum()
+        / current_group["page_url_cleaned"].count(),
+        (current_group["plt_avg"].le(30) & current_group["plt_avg"].gt(10)).sum()
+        / current_group["page_url_cleaned"].count(),
+        (current_group["plt_avg"].le(10) & current_group["plt_avg"].gt(5)).sum()
+        / current_group["page_url_cleaned"].count(),
+        (current_group["plt_avg"].le(5) & current_group["plt_avg"].gt(2.9)).sum()
+        / current_group["page_url_cleaned"].count(),
+        (current_group["plt_avg"].le(2.9) & current_group["plt_avg"].gt(1.7)).sum()
+        / current_group["page_url_cleaned"].count(),
+        (current_group["plt_avg"].le(1.7) & current_group["plt_avg"].gt(0.8)).sum()
+        / current_group["page_url_cleaned"].count(),
+        current_group["plt_avg"].le(0.8).sum()
+        / current_group["page_url_cleaned"].count(),
+        current_group["page_url_cleaned"].count()
+        / current_group["page_url_cleaned"].count(),
     ]
 
     pageview_counts = [
@@ -647,15 +834,21 @@ def create_external_metrics(current_raw, current_group):
     ]
 
     percent_pages = [
-        current_raw["plt_sec"].gt(60).sum()/current_raw["page_url"].count(),
-        (current_raw["plt_sec"].le(60) & current_raw["plt_sec"].gt(30)).sum()/current_raw["page_url"].count(),
-        (current_raw["plt_sec"].le(30) & current_raw["plt_sec"].gt(10)).sum()/current_raw["page_url"].count(),
-        (current_raw["plt_sec"].le(10) & current_raw["plt_sec"].gt(5)).sum()/current_raw["page_url"].count(),
-        (current_raw["plt_sec"].le(5) & current_raw["plt_sec"].gt(2.9)).sum()/current_raw["page_url"].count(),
-        (current_raw["plt_sec"].le(2.9) & current_raw["plt_sec"].gt(1.7)).sum()/current_raw["page_url"].count(),
-        (current_raw["plt_sec"].le(1.7) & current_raw["plt_sec"].gt(0.8)).sum()/current_raw["page_url"].count(),
-        current_raw["plt_sec"].le(0.8).sum()/current_raw["page_url"].count(),
-        current_raw["page_url"].count()/current_raw["page_url"].count()
+        current_raw["plt_sec"].gt(60).sum() / current_raw["page_url"].count(),
+        (current_raw["plt_sec"].le(60) & current_raw["plt_sec"].gt(30)).sum()
+        / current_raw["page_url"].count(),
+        (current_raw["plt_sec"].le(30) & current_raw["plt_sec"].gt(10)).sum()
+        / current_raw["page_url"].count(),
+        (current_raw["plt_sec"].le(10) & current_raw["plt_sec"].gt(5)).sum()
+        / current_raw["page_url"].count(),
+        (current_raw["plt_sec"].le(5) & current_raw["plt_sec"].gt(2.9)).sum()
+        / current_raw["page_url"].count(),
+        (current_raw["plt_sec"].le(2.9) & current_raw["plt_sec"].gt(1.7)).sum()
+        / current_raw["page_url"].count(),
+        (current_raw["plt_sec"].le(1.7) & current_raw["plt_sec"].gt(0.8)).sum()
+        / current_raw["page_url"].count(),
+        current_raw["plt_sec"].le(0.8).sum() / current_raw["page_url"].count(),
+        current_raw["page_url"].count() / current_raw["page_url"].count(),
     ]
 
     external_results = pd.DataFrame(
@@ -667,8 +860,6 @@ def create_external_metrics(current_raw, current_group):
             "Percent of Total Pageviews": percent_pages,
         }
     )
-
-    
 
     return external_results
 
@@ -868,6 +1059,17 @@ def create_current_outliers(current_raw, merged_group):
     )
 
     return outliers
+
+
+def style_header_row(input):
+    input.apply_headers_style(
+        styler_obj=Styler(
+            border_type=utils.borders.double,
+            bg_color="#336A90",
+            font_color=utils.colors.white,
+            bold=True,
+        )
+    )
 
 
 if __name__ == "__main__":
