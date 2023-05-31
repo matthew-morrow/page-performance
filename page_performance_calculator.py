@@ -1,6 +1,6 @@
 """
 @python_version 3.11.1
-@program_version 1.2.1
+@program_version 1.2.2
 @program_publish_date 2023.04.26
 @program_modified_date 2023.05.31
 @program_author Matthew Morrow
@@ -366,13 +366,86 @@ def main():
     )
 
     change_outliers = create_change_outliers(calculated_grouped_by_page_url)
+    styled_change_outliers = StyleFrame(change_outliers)
+    style_header_row(styled_change_outliers)
+    styled_change_outliers.apply_column_style(
+        cols_to_style=["page_url_cleaned"],
+        styler_obj=Styler(
+            number_format=utils.number_formats.general,
+            horizontal_alignment=utils.horizontal_alignments.left,
+        ),
+    )
+    styled_change_outliers.apply_column_style(
+        cols_to_style=["pv_current"],
+        styler_obj=Styler(
+            number_format=utils.number_formats.general_integer,
+            horizontal_alignment=utils.horizontal_alignments.right,
+        ),
+    )
+    styled_change_outliers.apply_column_style(
+        cols_to_style=["plt_avg_current","srt_avg_current"],
+        styler_obj=Styler(
+            number_format=utils.number_formats.general_float,
+            horizontal_alignment=utils.horizontal_alignments.right,
+        ),
+    )
+    styled_change_outliers.apply_column_style(
+        cols_to_style=["pv_percent_of_total","plt_percent_change", "srt_percent_change"],
+        styler_obj=Styler(
+            number_format=utils.number_formats.percent,
+            horizontal_alignment=utils.horizontal_alignments.right,
+        ),
+    )
+    styled_change_outliers.apply_column_style(
+        cols_to_style=["outlier_value"],
+        styler_obj=Styler(
+            number_format=utils.number_formats.general,
+            horizontal_alignment=utils.horizontal_alignments.right,
+        ),
+    )
 
     current_outliers = create_current_outliers(
         current_raw_results, calculated_grouped_by_page_url
     )
+    styled_current_outliers = StyleFrame(current_outliers)
+    style_header_row(styled_current_outliers)
+    styled_current_outliers.apply_column_style(
+        cols_to_style=["page_url_cleaned"],
+        styler_obj=Styler(
+            number_format=utils.number_formats.general,
+            horizontal_alignment=utils.horizontal_alignments.left,
+        ),
+    )
+    styled_current_outliers.apply_column_style(
+        cols_to_style=["pv_current"],
+        styler_obj=Styler(
+            number_format=utils.number_formats.general_integer,
+            horizontal_alignment=utils.horizontal_alignments.right,
+        ),
+    )
+    styled_current_outliers.apply_column_style(
+        cols_to_style=["plt_avg_current","srt_avg_current"],
+        styler_obj=Styler(
+            number_format=utils.number_formats.general_float,
+            horizontal_alignment=utils.horizontal_alignments.right,
+        ),
+    )
+    styled_current_outliers.apply_column_style(
+        cols_to_style=["pv_percent_of_total","plt_percent_change", "srt_percent_change"],
+        styler_obj=Styler(
+            number_format=utils.number_formats.percent,
+            horizontal_alignment=utils.horizontal_alignments.right,
+        ),
+    )
+    styled_current_outliers.apply_column_style(
+        cols_to_style=["outlier_value"],
+        styler_obj=Styler(
+            number_format=utils.number_formats.general,
+            horizontal_alignment=utils.horizontal_alignments.right,
+        ),
+    )
 
     styled_calculated_grouped_by_page_url = StyleFrame(calculated_grouped_by_page_url)
-
     style_header_row(styled_calculated_grouped_by_page_url)
     styled_calculated_grouped_by_page_url.apply_style_by_indexes(
         indexes_to_style=styled_calculated_grouped_by_page_url[
@@ -462,23 +535,23 @@ def main():
         )
         print("Top Pageview Change Results written")
 
-        StyleFrame(change_outliers).to_excel(
+        styled_change_outliers.to_excel(
             writer,
             sheet_name="change_outliers",
             index=False,
             freeze_panes=(1, 0),
             row_to_add_filters=0,
-            best_fit=list(change_outliers.columns),
+            best_fit=list(styled_change_outliers.columns),
         )
         print("Change Outlier Results written")
 
-        StyleFrame(current_outliers).to_excel(
+        styled_current_outliers.to_excel(
             writer,
             sheet_name="current_outliers",
             index=False,
             freeze_panes=(1, 0),
             row_to_add_filters=0,
-            best_fit=list(current_outliers.columns),
+            best_fit=list(styled_current_outliers.columns),
         )
         print("Current Outlier Results written")
 
