@@ -28,13 +28,18 @@ pip install -r ./requirements.txt
 The current command line arguments require the starting date of both the previous and current timeframe. Optional arguments exist for user customization
 
 Base sample command line utilizing GCS for raw dataset and active URLs
-```
+```Shell
 python ./page_performance_calculator.py -p 20230309 -c 20230330
 ```
 
 Base sample command line with local copies of GCS files in same directory
-```
+```Shell
 python ./page_performance_calculator.py -p 20230309 -c 20230330 -i "./page_performance_results.csv" -a "./eclkc_urls_200_status_code.csv"
+```
+
+Base sample command line with raw datasets written out. *Note to include file extensions with flags like -rd*
+```Shell
+python ./page_performance_calculator.py -p 20230309 -c 20230330 -rd "./raw_datasets_20230309-20230330.xlsx"
 ```
 
 ## Command Line Information
@@ -63,3 +68,9 @@ Optional Arguments:
 
 ```
 
+## Future Enhancements
+
+- [x] Stylize Excel Export
+- [ ] Determine if further threshold filtering is needed
+- [ ] ECLKC API for Active URLs instead of GCS file
+- [ ] Dockerize program?
