@@ -1,8 +1,8 @@
 """
 @python_version 3.11.1
-@program_version 1.2.2
+@program_version 1.3
 @program_publish_date 2023.04.26
-@program_modified_date 2023.05.31
+@program_modified_date 2023.07.26
 @program_author Matthew Morrow
 @program_description This program generates the various page performance reports based on user dictated start dates, timeframe window, and input file with the raw performance data.
 """
@@ -214,6 +214,19 @@ def main():
             encoding="latin-1",
             usecols=[
                 "event_date",
+                "event_timestamp",
+                "country",
+                "region",
+                "city",
+                "metro",
+                "category",
+                "mobile_brand_name",
+                "mobile_model_name",
+                "os_system",
+                "os_system_version",
+                "language",
+                "web_info_browser",
+                "web_info_browser_version",
                 "page_url",
                 "page_load_time_ms",
                 "server_response_time_ms",
@@ -222,6 +235,7 @@ def main():
     source_dataset["event_date"] = pd.to_datetime(
         source_dataset["event_date"], format="%Y%m%d"
     )
+    source_dataset["event_timestamp"] = pd.to_datetime(source_dataset["event_timestamp"], unit="us")
     print("\nCalculating results:")
     previous_raw_results = calculate_time_frame(
         args.previous_start_date[0], args.time_frame, source_dataset, eclkc_active_urls
