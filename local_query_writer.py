@@ -20,7 +20,7 @@ get_table_sql = """SELECT
   device.language as language,
   device.web_info.browser as web_info_browser,
   device.web_info.browser_version as web_info_browser_version,
-  event_date,
+event_date,
   event_timestamp,
   (
   SELECT

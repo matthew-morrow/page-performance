@@ -1,6 +1,6 @@
 """
 @python_version 3.11.1
-@program_version 1.3
+@program_version 1.3.1
 @program_publish_date 2023.04.26
 @program_modified_date 2023.07.26
 @program_author Matthew Morrow
@@ -201,6 +201,19 @@ def main():
             storage_options={"token": credentials},
             usecols=[
                 "event_date",
+                "event_timestamp",
+                "country",
+                "region",
+                "city",
+                "metro",
+                "category",
+                "mobile_brand_name",
+                "mobile_model_name",
+                "os_system",
+                "os_system_version",
+                "language",
+                "web_info_browser",
+                "web_info_browser_version",
                 "page_url",
                 "page_load_time_ms",
                 "server_response_time_ms",
@@ -236,6 +249,10 @@ def main():
         source_dataset["event_date"], format="%Y%m%d"
     )
     source_dataset["event_timestamp"] = pd.to_datetime(source_dataset["event_timestamp"], unit="us")
+    
+    source_dataset.loc[source_dataset['page_load_time_ms'] > 90000, 'page_load_time_ms'] = 90000
+    source_dataset.loc[source_dataset['server_response_time_ms'] > 90000, 'server_response_time_ms'] = 90000
+
     print("\nCalculating results:")
     previous_raw_results = calculate_time_frame(
         args.previous_start_date[0], args.time_frame, source_dataset, eclkc_active_urls
@@ -859,8 +876,8 @@ def create_top_results(previous_raw, previous_group, current_raw, current_group)
 def create_external_metrics(current_raw, current_group):
     print("Calculating External Metrics Results")
     external_metrics = [
-        ">60 secs:",
-        ">30 - <=60 secs:",
+        ">90 secs:",
+        ">30 - <=90 secs:",
         ">10 - <=30 secs:",
         ">5 - <=10 secs:",
         ">2.9 - <=5 secs:",
@@ -876,8 +893,8 @@ def create_external_metrics(current_raw, current_group):
     ]
 
     page_url_counts = [
-        current_group["plt_avg"].gt(60).sum(),
-        (current_group["plt_avg"].le(60) & current_group["plt_avg"].gt(30)).sum(),
+        current_group["plt_avg"].gt(90).sum(),
+        (current_group["plt_avg"].le(90) & current_group["plt_avg"].gt(30)).sum(),
         (current_group["plt_avg"].le(30) & current_group["plt_avg"].gt(10)).sum(),
         (current_group["plt_avg"].le(10) & current_group["plt_avg"].gt(5)).sum(),
         (current_group["plt_avg"].le(5) & current_group["plt_avg"].gt(2.9)).sum(),
@@ -888,9 +905,9 @@ def create_external_metrics(current_raw, current_group):
     ]
 
     percent_urls = [
-        current_group["plt_avg"].gt(60).sum()
+        current_group["plt_avg"].gt(90).sum()
         / current_group["page_url_cleaned"].count(),
-        (current_group["plt_avg"].le(60) & current_group["plt_avg"].gt(30)).sum()
+        (current_group["plt_avg"].le(90) & current_group["plt_avg"].gt(30)).sum()
         / current_group["page_url_cleaned"].count(),
         (current_group["plt_avg"].le(30) & current_group["plt_avg"].gt(10)).sum()
         / current_group["page_url_cleaned"].count(),
@@ -909,8 +926,8 @@ def create_external_metrics(current_raw, current_group):
     ]
 
     pageview_counts = [
-        current_raw["plt_sec"].gt(60).sum(),
-        (current_raw["plt_sec"].le(60) & current_raw["plt_sec"].gt(30)).sum(),
+        current_raw["plt_sec"].gt(90).sum(),
+        (current_raw["plt_sec"].le(90) & current_raw["plt_sec"].gt(30)).sum(),
         (current_raw["plt_sec"].le(30) & current_raw["plt_sec"].gt(10)).sum(),
         (current_raw["plt_sec"].le(10) & current_raw["plt_sec"].gt(5)).sum(),
         (current_raw["plt_sec"].le(5) & current_raw["plt_sec"].gt(2.9)).sum(),
@@ -921,8 +938,8 @@ def create_external_metrics(current_raw, current_group):
     ]
 
     percent_pages = [
-        current_raw["plt_sec"].gt(60).sum() / current_raw["page_url"].count(),
-        (current_raw["plt_sec"].le(60) & current_raw["plt_sec"].gt(30)).sum()
+        current_raw["plt_sec"].gt(90).sum() / current_raw["page_url"].count(),
+        (current_raw["plt_sec"].le(90) & current_raw["plt_sec"].gt(30)).sum()
         / current_raw["page_url"].count(),
         (current_raw["plt_sec"].le(30) & current_raw["plt_sec"].gt(10)).sum()
         / current_raw["page_url"].count(),
