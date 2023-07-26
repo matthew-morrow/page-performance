@@ -1,19 +1,13 @@
 from google.cloud import bigquery
 from google.oauth2 import service_account
+import pandas as pd
+from datetime import datetime
 
-credentials = service_account.Credentials.from_service_account_file(
-    ".\\hsicc-eblasts-analytics-1d54ac154638.json", scopes=["https://www.googleapis.com/auth/cloud-platform"],
-)
+credentials = service_account.Credentials.from_service_account_file(".\\hsicc-eblasts-analytics-1d54ac154638.json", scopes=["https://www.googleapis.com/auth/cloud-platform"],)
 
 bq_client = bigquery.Client(credentials=credentials, project=credentials.project_id,)
 
-table_string = "hsicc-eblasts-analytics.eclkc_advanced_analytics.page_performance_results"
-
-job_config = bigquery.QueryJobConfig(destination=table_string)
-job_config.write_disposition = bigquery.WriteDisposition.WRITE_TRUNCATE
-
-
-modify_table_sql = """ SELECT
+get_table_sql = """SELECT
   geo.country,
   geo.region,
   geo.city,
@@ -54,9 +48,8 @@ FROM
 WHERE
   event_name = "performance_timing"
   AND (geo.country = "United States" OR geo.country = "American Samoa" OR geo.country = "Micronesia" OR geo.country = "Guam" OR geo.country = "Marshall Islands"  OR geo.country = "Northern Mariana Islands" OR geo.country = "Palau" OR geo.country = "Puerto Rico" OR geo.country = "U.S. Virgin Islands")
-  AND (_TABLE_SUFFIX BETWEEN "20230201" and "20230626")"""
+  AND (_TABLE_SUFFIX BETWEEN "20230527" and "20230724")"""
 
-query_job = bq_client.query(modify_table_sql, job_config=job_config)  # Make an API request.
-query_job.result()  # Wait for the job to complete.
+df = bq_client.query(get_table_sql).to_dataframe()
 
-print("Query results loaded to the table {}".format(table_string))
+df.to_csv("raw_data_20230528_20230709.csv")
