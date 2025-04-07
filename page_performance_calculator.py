@@ -1,8 +1,8 @@
 """
 @python_version 3.11.1
-@program_version 1.3.2
+@program_version 1.3.3
 @program_publish_date 2023.04.26
-@program_modified_date 2023.07.26
+@program_modified_date 2025.04.07
 @program_author Matthew Morrow
 @program_description This program generates the various page performance reports based on user dictated start dates, timeframe window, and input file with the raw performance data.
 """
