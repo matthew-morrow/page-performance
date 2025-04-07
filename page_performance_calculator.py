@@ -162,14 +162,9 @@ def main():
 
     # If the user did not specify
     if args.active_urls_file is None:
-        """print("Getting active URLs file from Box")
-        eclkc_active_urls_id = eclkc_active_urls_id = config("eclkc_active_urls_id")
-        eclkc_active_urls_file_url = client.file(eclkc_active_urls_id).get_download_url()
-        eclkc_active_urls = pd.read_csv(eclkc_active_urls_file_url, encoding="latin-1")
-        print("Active URLs file read from Box")"""
 
         print("Getting active URLs file from GCS")
-        eclkc_active_urls = pd.read_csv(
+        headstart_active_urls = pd.read_csv(
             bucket_location_for_active_urls,
             encoding="latin-1",
             storage_options={"token": credentials},
@@ -178,7 +173,7 @@ def main():
 
     else:
         print("Reading active URLs file from path")
-        eclkc_active_urls = pd.read_csv(args.active_urls_file, encoding="latin-1")
+        headstart_active_urls = pd.read_csv(args.active_urls_file, encoding="latin-1")
 
     if args.input_file is None:
         """print("Getting source file from Box")
@@ -255,12 +250,12 @@ def main():
 
     print("\nCalculating results:")
     previous_raw_results = calculate_time_frame(
-        args.previous_start_date[0], args.time_frame, source_dataset, eclkc_active_urls
+        args.previous_start_date[0], args.time_frame, source_dataset, headstart_active_urls
     )
     previous_grouped_by_url = group_by_page_url(previous_raw_results)
 
     current_raw_results = calculate_time_frame(
-        args.current_start_date[0], args.time_frame, source_dataset, eclkc_active_urls
+        args.current_start_date[0], args.time_frame, source_dataset, headstart_active_urls
     )
     current_grouped_by_url = group_by_page_url(current_raw_results)
 
@@ -630,7 +625,7 @@ def cleanup_input_raw_results(to_clean_dataframe, active_urls):
     )
 
     to_clean_dataframe["page_url_cleaned"] = to_clean_dataframe["page_url"].replace(
-        "https://eclkc.ohs.acf.hhs.gov", "", regex=True
+        "https://headstart.gov", "", regex=True
     )
     to_clean_dataframe["page_url_cleaned"] = (
         to_clean_dataframe["page_url_cleaned"].str.split("?").str[0]
